@@ -1,0 +1,68 @@
+{
+  "expo": {
+    "name": "Thantra Astro",
+    "slug": "astro_learn",
+    "version": "1.0.2",
+    "orientation": "default",
+    "icon": "./assets/images/icon.png",
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#4A0017"
+    },
+    "scheme": "astrolearn",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "bundleIdentifier": "com.lavish1.astrolearn",
+      "buildNumber": "8",
+      "supportsTablet": true
+    },
+    "android": {
+      "softwareKeyboardLayoutMode": "resize",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/images/icon.png"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "package": "com.lavish.astrolearn",
+      "permissions": []
+    },
+    "androidNavigationBar": {
+      "backgroundColor": "#120A1C",
+      "barStyle": "light-content",
+      "enforceContrast": true
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/icon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "cover",
+          "backgroundColor": "#4A0017",
+          "dark": {
+            "backgroundColor": "#4A0017"
+          }
+        }
+      ],
+      "react-native-video"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c09fbdb1-4fc7-496e-b0a6-f5b3d6883296"
+      }
+    }
+  }
+}

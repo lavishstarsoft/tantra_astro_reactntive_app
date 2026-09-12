@@ -1,0 +1,34 @@
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native build outputs (source is kept, only generated build files ignored)
+ios/build/
+ios/Pods/
+ios/DerivedData/
+android/build/
+android/app/build/
+android/.gradle/
+android/.idea/
+*.xcuserstate
+
+# Secrets & signing credentials — NEVER commit
+.env
+.env*.local
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+*.cer
+
+# Misc
+.DS_Store
+*.log
+npm-debug.*
+yarn-error.*
+.vscode/
