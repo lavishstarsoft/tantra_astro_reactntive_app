@@ -1,15 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { useEffect } from 'react';
-import { Modal, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, Easing, Modal, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, {
-  Easing,
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withDelay,
-  withTiming,
-} from 'react-native-reanimated';
 
 type Props = {
   visible: boolean;
@@ -17,31 +9,34 @@ type Props = {
   onHide: () => void;
 };
 
+// React Native Animated (works inside <Modal>, unlike Reanimated).
 export function PaymentFailedToast({ visible, message, onHide }: Props) {
-  const translateY = useSharedValue(-160);
-  const opacity = useSharedValue(0);
+  const translateY = useRef(new Animated.Value(-160)).current;
 
   useEffect(() => {
     if (!visible) return;
 
-    translateY.value = -160;
-    opacity.value = 0;
-    translateY.value = withTiming(0, { duration: 320, easing: Easing.out(Easing.cubic) });
-    opacity.value = withTiming(1, { duration: 260 });
+    translateY.setValue(-160);
+    Animated.timing(translateY, {
+      toValue: 0,
+      duration: 320,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
 
-    opacity.value = withDelay(3200, withTiming(0, { duration: 300 }));
-    translateY.value = withDelay(
-      3200,
-      withTiming(-160, { duration: 320, easing: Easing.in(Easing.cubic) }, (finished) => {
-        if (finished) runOnJS(onHide)();
-      })
-    );
+    const t = setTimeout(() => {
+      Animated.timing(translateY, {
+        toValue: -160,
+        duration: 300,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (finished) onHide();
+      });
+    }, 3200);
+
+    return () => clearTimeout(t);
   }, [visible]);
-
-  const animStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-    opacity: opacity.value,
-  }));
 
   return (
     <Modal
@@ -51,7 +46,7 @@ export function PaymentFailedToast({ visible, message, onHide }: Props) {
       animationType="none"
       onRequestClose={onHide}>
       <SafeAreaView pointerEvents="none" style={styles.safe} edges={['top']}>
-        <Animated.View style={[styles.toast, animStyle]}>
+        <Animated.View style={[styles.toast, { transform: [{ translateY }] }]}>
           <View style={styles.iconWrap}>
             <MaterialIcons name="error-outline" size={22} color="#FFFFFF" />
           </View>
@@ -68,13 +63,7 @@ export function PaymentFailedToast({ visible, message, onHide }: Props) {
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
+  safe: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center' },
   toast: {
     flexDirection: 'row',
     alignItems: 'center',

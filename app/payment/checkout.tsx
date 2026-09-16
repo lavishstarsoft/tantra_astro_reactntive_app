@@ -128,11 +128,16 @@ export default function PaymentCheckoutScreen() {
     verifyPurchaseSoon(target, kind);
   }, [target, kind, verifyPurchaseSoon]);
 
+  const isReturnUrl = useCallback(
+    (u: string) => u.includes('/payment/success') || returnPrefixes.some((p) => u.startsWith(p)),
+    [returnPrefixes]
+  );
+
   const onShouldStart = useCallback(
     (req: { url: string }) => {
       const u = req.url || '';
 
-      if (returnPrefixes.some((p) => u.startsWith(p))) {
+      if (isReturnUrl(u)) {
         finishWith(u);
         return false;
       }
@@ -145,17 +150,17 @@ export default function PaymentCheckoutScreen() {
 
       return true;
     },
-    [returnPrefixes, finishWith]
+    [isReturnUrl, finishWith]
   );
 
   const onNavChange = useCallback(
     (nav: WebViewNavigation) => {
       const u = nav.url || '';
-      if (returnPrefixes.some((p) => u.startsWith(p))) {
+      if (isReturnUrl(u)) {
         finishWith(u);
       }
     },
-    [returnPrefixes, finishWith]
+    [isReturnUrl, finishWith]
   );
 
   useFocusEffect(

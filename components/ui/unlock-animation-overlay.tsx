@@ -1,14 +1,5 @@
-import React, { useEffect } from 'react';
-import { Dimensions, Modal, StyleSheet, Text, View } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withSequence,
-  withDelay,
-  Easing,
-  runOnJS,
-} from 'react-native-reanimated';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Dimensions, Easing, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
@@ -22,54 +13,36 @@ interface Props {
   title: string;
 }
 
+// Uses React Native's Animated (works inside <Modal>, unlike Reanimated) and
+// renders the card visible by default so the popup always shows.
 export function UnlockAnimationOverlay({ visible, onFinished, title }: Props) {
-  const opacity = useSharedValue(0);
-  const scale = useSharedValue(0.8);
-  const lockRotation = useSharedValue(0);
-  const lockTranslateY = useSharedValue(0);
+  const scale = useRef(new Animated.Value(0.85)).current;
+  const lockLift = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    if (visible) {
-      opacity.value = withTiming(1, { duration: 400 });
-      scale.value = withTiming(1, { duration: 400, easing: Easing.out(Easing.back(1.5)) });
+    if (!visible) return;
 
-      lockRotation.value = withDelay(500, withSequence(
-        withTiming(-10, { duration: 50 }),
-        withTiming(10, { duration: 100 }),
-        withTiming(-10, { duration: 100 }),
-        withTiming(0, { duration: 50 })
-      ));
+    scale.setValue(0.85);
+    lockLift.setValue(0);
 
-      lockTranslateY.value = withDelay(800, withTiming(-100, { duration: 600, easing: Easing.in(Easing.exp) }));
+    Animated.spring(scale, { toValue: 1, friction: 6, tension: 90, useNativeDriver: true }).start();
+    Animated.sequence([
+      Animated.delay(400),
+      Animated.timing(lockLift, {
+        toValue: 1,
+        duration: 500,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
 
-      setTimeout(() => {
-        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }, 800);
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      opacity.value = withDelay(2000, withTiming(0, { duration: 500 }, (finished) => {
-        if (finished) {
-          runOnJS(onFinished)();
-        }
-      }));
-    } else {
-      opacity.value = 0;
-      scale.value = 0.8;
-      lockTranslateY.value = 0;
-      lockRotation.value = 0;
-    }
+    const t = setTimeout(onFinished, 2600);
+    return () => clearTimeout(t);
   }, [visible]);
 
-  const containerStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [{ scale: scale.value }],
-  }));
-
-  const lockStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: lockTranslateY.value },
-      { rotate: `${lockRotation.value}deg` },
-    ],
-  }));
+  const lockTranslate = lockLift.interpolate({ inputRange: [0, 1], outputRange: [0, -14] });
 
   return (
     <Modal
@@ -78,11 +51,11 @@ export function UnlockAnimationOverlay({ visible, onFinished, title }: Props) {
       statusBarTranslucent
       animationType="fade"
       onRequestClose={onFinished}>
-      <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
-        <Animated.View style={[styles.container, containerStyle]}>
-          <View style={styles.card}>
-            <Animated.View style={[styles.lockCircle, lockStyle]}>
+      <Pressable style={StyleSheet.absoluteFill} onPress={onFinished}>
+        <BlurView intensity={22} tint="dark" style={StyleSheet.absoluteFill} />
+        <View style={styles.center}>
+          <Animated.View style={[styles.card, { transform: [{ scale }] }]}>
+            <Animated.View style={[styles.lockCircle, { transform: [{ translateY: lockTranslate }] }]}>
               <MaterialIcons name="lock-open" size={48} color="#FFFFFF" />
             </Animated.View>
             <Text style={styles.successText}>Content Unlocked!</Text>
@@ -90,22 +63,17 @@ export function UnlockAnimationOverlay({ visible, onFinished, title }: Props) {
             <View style={styles.badge}>
               <Text style={styles.badgeText}>PREMIUM ACCESS</Text>
             </View>
-          </View>
-        </Animated.View>
-      </View>
+          </Animated.View>
+        </View>
+      </Pressable>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   card: {
-    backgroundColor: 'rgba(30, 20, 30, 0.96)',
+    backgroundColor: 'rgba(30, 20, 30, 0.97)',
     borderRadius: 32,
     padding: 32,
     alignItems: 'center',
@@ -116,7 +84,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
     shadowRadius: 20,
-    elevation: 10,
+    elevation: 12,
   },
   lockCircle: {
     width: 96,
@@ -129,13 +97,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: ACCENT,
   },
-  successText: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
+  successText: { fontSize: 24, fontWeight: '800', color: '#FFFFFF', textAlign: 'center', marginBottom: 8 },
   titleText: {
     fontSize: 16,
     color: 'rgba(255, 255, 255, 0.7)',
@@ -143,16 +105,6 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     fontWeight: '500',
   },
-  badge: {
-    backgroundColor: ACCENT,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    letterSpacing: 1,
-  },
+  badge: { backgroundColor: ACCENT, paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20 },
+  badgeText: { fontSize: 10, fontWeight: '900', color: '#FFFFFF', letterSpacing: 1 },
 });
