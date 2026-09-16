@@ -11,6 +11,7 @@ import { apiUrl } from '@/lib/api';
 import { useNotifications } from '@/providers/notification-provider';
 import { clearTokens, getAccessToken, getRefreshToken, setTokens } from '@/lib/auth-tokens';
 import { getDeviceId } from '@/lib/device-id';
+import { isCompAccount } from '@/lib/comp-account';
 
 export type PurchaseInfo = {
   expiresAt: string | null;

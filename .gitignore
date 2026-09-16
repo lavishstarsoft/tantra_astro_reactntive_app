@@ -25,6 +25,7 @@ android/.idea/
 *.p12
 *.mobileprovision
 *.cer
+credentials.json
 
 # Misc
 .DS_Store

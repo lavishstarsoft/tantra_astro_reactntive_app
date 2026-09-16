@@ -158,6 +158,7 @@ function RootNavigator() {
         <Stack.Screen name="category/[name]" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="video/[id]" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="quiz/[id]" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="shorts" options={{ animation: 'slide_from_bottom', gestureEnabled: true }} />
         <Stack.Screen name="player/[id]" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="edit-profile" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="security" options={{ animation: 'slide_from_right' }} />

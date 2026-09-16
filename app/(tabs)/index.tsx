@@ -29,6 +29,7 @@ import { useNotifications } from '@/providers/notification-provider';
 import { usePurchase } from '@/providers/purchase-provider';
 import { useLibrary } from '@/providers/library-provider';
 import { isCompAccount } from '@/lib/comp-account';
+import { useShorts } from '@/hooks/use-shorts';
 
 function CarouselImage({
   source,
@@ -72,6 +73,7 @@ export default function HomeScreen() {
   const { unreadCount } = useNotifications();
   const { bookmarks, toggleBookmark, categoryBookmarks, toggleCategoryBookmark } = useLibrary();
   const { progressForTitle } = useWatchProgressMap();
+  const { shorts: quickLessons } = useShorts();
   const {
     allVideos,
     carouselItems,
@@ -478,6 +480,37 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {quickLessons.length > 0 ? (
+          <>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shortsRail}>
+              {quickLessons.map((short, index) => (
+                <Pressable
+                  key={short.id}
+                  onPress={() => router.push(`/shorts?start=${index}` as any)}
+                  style={[styles.shortCard, { backgroundColor: cardBg, borderColor: border }]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Play quick lesson: ${short.title}`}>
+                  {short.thumbnail ? (
+                    <Image source={{ uri: short.thumbnail }} style={styles.shortThumb} contentFit="cover" />
+                  ) : (
+                    <View style={[styles.shortThumb, styles.shortThumbFallback]}>
+                      <MaterialIcons name="play-circle-outline" size={30} color="rgba(255,255,255,0.9)" />
+                    </View>
+                  )}
+                  <View style={styles.shortDurationPill}>
+                    <Text style={styles.shortDurationText}>
+                      {`${Math.floor(short.duration / 60)}:${String(short.duration % 60).padStart(2, '0')}`}
+                    </Text>
+                  </View>
+                  <Text style={[styles.shortTitle, { color: textPrimary }]} numberOfLines={2}>
+                    {short.title}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </>
+        ) : null}
+
         {homeConfig.showContinueWatching && continueWatching.length > 0 ? (
           <>
             <View style={styles.sectionHeader}>
@@ -754,6 +787,46 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  shortsRail: {
+    gap: 10,
+    paddingBottom: 4,
+  },
+  shortCard: {
+    width: 160,
+    borderRadius: 14,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  shortThumb: {
+    width: '100%',
+    height: 240,
+  },
+  shortThumbFallback: {
+    backgroundColor: '#2A0512',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shortDurationPill: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  shortDurationText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  shortTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 16,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+  },
   safeArea: {
     flex: 1,
   },

@@ -16,6 +16,10 @@
     },
     "production": {
       "autoIncrement": true
+    },
+    "production-android": {
+      "extends": "production",
+      "credentialsSource": "local"
     }
   },
   "submit": {

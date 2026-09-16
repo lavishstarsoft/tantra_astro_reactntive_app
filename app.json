@@ -16,7 +16,11 @@
     "ios": {
       "bundleIdentifier": "com.lavish1.astrolearn",
       "buildNumber": "8",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "associatedDomains": [
+        "applinks:www.thantraastro.in",
+        "applinks:thantraastro.in"
+      ]
     },
     "android": {
       "softwareKeyboardLayoutMode": "resize",
@@ -26,8 +30,31 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.lavish.astrolearn",
-      "permissions": []
+      "package": "com.lavish1.astrolearn",
+      "permissions": [],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "www.thantraastro.in",
+              "pathPrefix": "/shorts"
+            },
+            {
+              "scheme": "https",
+              "host": "thantraastro.in",
+              "pathPrefix": "/shorts"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ],
+      "versionCode": 4
     },
     "androidNavigationBar": {
       "backgroundColor": "#120A1C",
