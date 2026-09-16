@@ -18,10 +18,14 @@ import { usePurchase } from '@/providers/purchase-provider';
 
 const ACCENT = '#8F3D66';
 
+// A real Chrome (not WebView) user agent so Razorpay shows UPI intent apps.
+const CHROME_UA =
+  'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36';
+
 const readParam = (value: string | string[] | undefined) =>
   Array.isArray(value) ? value[0] : value;
 
-// Payment-app deep links that must open outside the WebView (UPI apps etc.)
+// Non-http schemes that must be launched OUTSIDE the WebView (UPI apps, etc.).
 const EXTERNAL_SCHEMES = [
   'upi:',
   'intent:',
@@ -35,6 +39,38 @@ const EXTERNAL_SCHEMES = [
   'tel:',
   'whatsapp:',
 ];
+
+/**
+ * Launch a UPI / app deep link outside the WebView. Android UPI apps are often
+ * offered as `intent://…#Intent;scheme=upi;package=…;end` URLs which Linking
+ * can't open directly, so we rebuild a plain `upi://…` (or the fallback URL).
+ */
+function launchExternal(url: string) {
+  if (!url.toLowerCase().startsWith('intent:')) {
+    Linking.openURL(url).catch(() => {});
+    return;
+  }
+  try {
+    const body = url.replace(/^intent:\/\//i, '');
+    const [dataPart, intentPart = ''] = body.split('#Intent;');
+    const parts: Record<string, string> = {};
+    intentPart
+      .split(';')
+      .filter(Boolean)
+      .forEach((kv) => {
+        const eq = kv.indexOf('=');
+        if (eq > -1) parts[kv.slice(0, eq)] = kv.slice(eq + 1);
+      });
+    const scheme = parts.scheme || 'upi';
+    const rebuilt = `${scheme}://${dataPart}`;
+    Linking.openURL(rebuilt).catch(() => {
+      const fallback = parts['S.browser_fallback_url'];
+      if (fallback) Linking.openURL(decodeURIComponent(fallback)).catch(() => {});
+    });
+  } catch {
+    Linking.openURL(url).catch(() => {});
+  }
+}
 
 export default function PaymentCheckoutScreen() {
   const params = useLocalSearchParams();
@@ -70,7 +106,6 @@ export default function PaymentCheckoutScreen() {
       const retTarget = (readParam(q.target as any) as string) || target;
       const retKind = (readParam(q.kind as any) as string) || kind;
 
-      // Close the payment screen, then surface the result on the page behind it.
       if (router.canGoBack()) router.back();
       else router.replace('/(tabs)' as any);
 
@@ -89,25 +124,22 @@ export default function PaymentCheckoutScreen() {
     else router.replace('/(tabs)' as any);
   }, []);
 
-  // Intercept every navigation the WebView attempts.
   const onShouldStart = useCallback(
     (req: { url: string }) => {
       const u = req.url || '';
 
       if (returnPrefixes.some((p) => u.startsWith(p))) {
         finishWith(u);
-        return false; // don't load the return URL inside the WebView
+        return false;
       }
 
       const lower = u.toLowerCase();
       if (EXTERNAL_SCHEMES.some((s) => lower.startsWith(s))) {
-        Linking.openURL(u).catch(() => {
-          /* UPI app not installed — stay in WebView */
-        });
+        launchExternal(u);
         return false;
       }
 
-      return true; // normal http(s) checkout navigation
+      return true;
     },
     [returnPrefixes, finishWith]
   );
@@ -122,7 +154,6 @@ export default function PaymentCheckoutScreen() {
     [returnPrefixes, finishWith]
   );
 
-  // Android hardware back = cancel payment.
   useFocusEffect(
     useCallback(() => {
       const sub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -135,21 +166,23 @@ export default function PaymentCheckoutScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      {/* Slim header: title + a CLOSE (✕) on the right. No left back arrow, so it
+          doesn't duplicate Razorpay's own back arrow inside the page. */}
       <View style={styles.header}>
-        <Pressable onPress={cancel} hitSlop={12} style={styles.backBtn}>
-          <MaterialIcons name="arrow-back" size={24} color="#FFFFFF" />
-        </Pressable>
         <View style={styles.titleWrap}>
-          <MaterialIcons name="lock" size={16} color="#FFFFFF" />
+          <MaterialIcons name="lock" size={15} color="#FFFFFF" />
           <Text style={styles.title}>Secure Payment</Text>
         </View>
-        <View style={styles.backBtn} />
+        <Pressable onPress={cancel} hitSlop={12} style={styles.closeBtn}>
+          <MaterialIcons name="close" size={22} color="#FFFFFF" />
+        </Pressable>
       </View>
 
       {url ? (
         <View style={styles.webWrap}>
           <WebView
             source={{ uri: url }}
+            userAgent={CHROME_UA}
             originWhitelist={['*']}
             onShouldStartLoadWithRequest={onShouldStart}
             onNavigationStateChange={onNavChange}
@@ -157,6 +190,7 @@ export default function PaymentCheckoutScreen() {
             onLoadEnd={() => setLoading(false)}
             javaScriptEnabled
             domStorageEnabled
+            thirdPartyCookiesEnabled
             startInLoadingState
             setSupportMultipleWindows={false}
             style={styles.web}
@@ -180,16 +214,17 @@ export default function PaymentCheckoutScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#120A1C' },
   header: {
-    height: 52,
+    height: 50,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 12,
+    paddingLeft: 16,
+    paddingRight: 8,
     backgroundColor: ACCENT,
   },
-  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   titleWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   title: { color: '#FFFFFF', fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
+  closeBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   webWrap: { flex: 1, backgroundColor: '#FFFFFF' },
   web: { flex: 1, backgroundColor: '#FFFFFF' },
   loader: {
