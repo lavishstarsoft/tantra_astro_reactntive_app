@@ -2,7 +2,7 @@
   "expo": {
     "name": "Thantra Astro",
     "slug": "astro_learn",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "splash": {
@@ -54,7 +54,7 @@
           ]
         }
       ],
-      "versionCode": 8
+      "versionCode": 10
     },
     "androidNavigationBar": {
       "backgroundColor": "#120A1C",

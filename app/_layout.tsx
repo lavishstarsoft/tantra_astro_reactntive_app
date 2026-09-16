@@ -165,9 +165,9 @@ function RootNavigator() {
         <Stack.Screen name="terms" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="help-center" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="payment/success" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="payment/checkout" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
         <Stack.Screen name="notifications" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} backgroundColor={appBg} />
     </ThemeProvider>

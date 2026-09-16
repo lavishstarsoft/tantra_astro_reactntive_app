@@ -2,9 +2,9 @@ import { router } from 'expo-router';
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import * as Linking from 'expo-linking';
-import * as WebBrowser from 'expo-web-browser';
 
 import { AnimatedLoadingPopup } from '@/components/ui/animated-loading-popup';
+import { PaymentFailedToast } from '@/components/ui/payment-failed-toast';
 import { UnlockAnimationOverlay } from '@/components/ui/unlock-animation-overlay';
 import { useCatalog } from '@/providers/catalog-provider';
 import { apiUrl } from '@/lib/api';
@@ -23,6 +23,8 @@ type PurchaseContextValue = {
   purchaseCategory: (category: string) => void;
   purchaseVideo: (videoTitle: string) => void;
   syncPurchases: () => Promise<void>;
+  notifyPaymentSuccess: (target: string, kind: string) => void;
+  notifyPaymentFailure: () => void;
   hasCategoryAccess: (category?: string) => boolean;
   hasVideoAccess: (videoTitle: string, options?: { category?: string; isFree?: boolean }) => boolean;
   getExpirationDate: (kind: 'video' | 'category', target: string) => string | null;
@@ -37,6 +39,17 @@ function PurchaseProviderInner({ children }: { children: ReactNode }) {
   const [purchasedVideos, setPurchasedVideos] = useState<Record<string, PurchaseInfo>>({});
   const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
   const [pendingUnlock, setPendingUnlock] = useState<{ title: string; kind: string } | null>(null);
+  const [paymentFailed, setPaymentFailed] = useState(false);
+
+  const notifyPaymentSuccess = (target: string, kind: string) => {
+    if (target) setPendingUnlock({ title: target, kind: kind || 'video' });
+    void syncPurchases();
+    void refreshNotifications();
+  };
+
+  const notifyPaymentFailure = () => {
+    setPaymentFailed(true);
+  };
 
   const tryRefreshAccessToken = async () => {
     const refreshToken = await getRefreshToken();
@@ -114,14 +127,14 @@ function PurchaseProviderInner({ children }: { children: ReactNode }) {
         const parsed = Linking.parse(url);
         const params = parsed.queryParams || {};
         const status = params.status;
-        const target = params.target as string;
-        const kind = params.kind as string;
+        const target = (params.target as string) || '';
+        const kind = (params.kind as string) || 'video';
 
-        if (status === 'success' && target) {
-          setPendingUnlock({ title: target, kind: kind || 'video' });
+        if (status === 'success') {
+          notifyPaymentSuccess(target, kind);
+        } else {
+          notifyPaymentFailure();
         }
-        void syncPurchases();
-        void refreshNotifications();
       }
     };
 
@@ -149,16 +162,13 @@ function PurchaseProviderInner({ children }: { children: ReactNode }) {
         const json = (await res.json()) as any;
         if (!res.ok || !json?.url) return;
         
-        const checkoutUrl = json.url.includes('?') 
+        const checkoutUrl = json.url.includes('?')
           ? `${json.url}&target=${encodeURIComponent(category)}&kind=category`
           : `${json.url}?target=${encodeURIComponent(category)}&kind=category`;
 
-        await WebBrowser.openBrowserAsync(checkoutUrl, {
-          toolbarColor: '#0F172A',
-          controlsColor: '#FFFFFF',
-          showTitle: false,
-          enableBarCollapsing: true,
-          presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
+        router.push({
+          pathname: '/payment/checkout',
+          params: { url: checkoutUrl, target: category, kind: 'category' },
         });
       } finally {
         setLoadingMessage(null);
@@ -185,16 +195,13 @@ function PurchaseProviderInner({ children }: { children: ReactNode }) {
         const json = (await res.json()) as any;
         if (!res.ok || !json?.url) return;
 
-        const checkoutUrl = json.url.includes('?') 
+        const checkoutUrl = json.url.includes('?')
           ? `${json.url}&target=${encodeURIComponent(videoTitle)}&kind=video`
           : `${json.url}?target=${encodeURIComponent(videoTitle)}&kind=video`;
 
-        await WebBrowser.openBrowserAsync(checkoutUrl, {
-          toolbarColor: '#0F172A',
-          controlsColor: '#FFFFFF',
-          showTitle: false,
-          enableBarCollapsing: true,
-          presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
+        router.push({
+          pathname: '/payment/checkout',
+          params: { url: checkoutUrl, target: videoTitle, kind: 'video' },
         });
       } finally {
         setLoadingMessage(null);
@@ -232,6 +239,8 @@ function PurchaseProviderInner({ children }: { children: ReactNode }) {
       purchaseCategory,
       purchaseVideo,
       syncPurchases,
+      notifyPaymentSuccess,
+      notifyPaymentFailure,
       hasCategoryAccess,
       hasVideoAccess,
       getExpirationDate,
@@ -251,6 +260,10 @@ function PurchaseProviderInner({ children }: { children: ReactNode }) {
         visible={Boolean(pendingUnlock)}
         title={pendingUnlock?.title ?? ''}
         onFinished={() => setPendingUnlock(null)}
+      />
+      <PaymentFailedToast
+        visible={paymentFailed}
+        onHide={() => setPaymentFailed(false)}
       />
     </PurchaseContext.Provider>
   );
