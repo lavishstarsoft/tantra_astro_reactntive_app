@@ -15,7 +15,12 @@
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_CMS_BASE_URL": "https://www.thantraastro.in",
+        "EXPO_PUBLIC_APP_SCHEME": "astrolearn",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://ad5e500a0f211b342ee1f315626ebf96@o4511387237285888.ingest.us.sentry.io/4511387265925120"
+      }
     },
     "production-android": {
       "extends": "production",
