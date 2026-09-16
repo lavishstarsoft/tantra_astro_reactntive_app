@@ -1,19 +1,20 @@
 import React, { useEffect } from 'react';
-import { StyleSheet, Text, View, Dimensions } from 'react-native';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withTiming, 
-  withSequence, 
+import { Dimensions, Modal, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSequence,
   withDelay,
   Easing,
-  runOnJS
+  runOnJS,
 } from 'react-native-reanimated';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
+const ACCENT = '#8F3D66';
 
 interface Props {
   visible: boolean;
@@ -29,11 +30,9 @@ export function UnlockAnimationOverlay({ visible, onFinished, title }: Props) {
 
   useEffect(() => {
     if (visible) {
-      // Step 1: Fade in
       opacity.value = withTiming(1, { duration: 400 });
       scale.value = withTiming(1, { duration: 400, easing: Easing.out(Easing.back(1.5)) });
 
-      // Step 2: Shake lock (anticipation)
       lockRotation.value = withDelay(500, withSequence(
         withTiming(-10, { duration: 50 }),
         withTiming(10, { duration: 100 }),
@@ -41,15 +40,12 @@ export function UnlockAnimationOverlay({ visible, onFinished, title }: Props) {
         withTiming(0, { duration: 50 })
       ));
 
-      // Step 3: Unlock (jump and fade)
       lockTranslateY.value = withDelay(800, withTiming(-100, { duration: 600, easing: Easing.in(Easing.exp) }));
-      
-      // Haptics for impact
+
       setTimeout(() => {
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }, 800);
 
-      // Step 4: Fade out and finish
       opacity.value = withDelay(2000, withTiming(0, { duration: 500 }, (finished) => {
         if (finished) {
           runOnJS(onFinished)();
@@ -71,28 +67,33 @@ export function UnlockAnimationOverlay({ visible, onFinished, title }: Props) {
   const lockStyle = useAnimatedStyle(() => ({
     transform: [
       { translateY: lockTranslateY.value },
-      { rotate: `${lockRotation.value}deg` }
+      { rotate: `${lockRotation.value}deg` },
     ],
   }));
 
-  if (!visible) return null;
-
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
-      <Animated.View style={[styles.container, containerStyle]}>
-        <View style={styles.card}>
-          <Animated.View style={[styles.lockCircle, lockStyle]}>
-            <MaterialIcons name="lock-open" size={48} color="#FFD700" />
-          </Animated.View>
-          <Text style={styles.successText}>Content Unlocked!</Text>
-          <Text style={styles.titleText} numberOfLines={2}>{title}</Text>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>PREMIUM ACCESS</Text>
+    <Modal
+      visible={visible}
+      transparent
+      statusBarTranslucent
+      animationType="fade"
+      onRequestClose={onFinished}>
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
+        <Animated.View style={[styles.container, containerStyle]}>
+          <View style={styles.card}>
+            <Animated.View style={[styles.lockCircle, lockStyle]}>
+              <MaterialIcons name="lock-open" size={48} color="#FFFFFF" />
+            </Animated.View>
+            <Text style={styles.successText}>Content Unlocked!</Text>
+            <Text style={styles.titleText} numberOfLines={2}>{title}</Text>
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>PREMIUM ACCESS</Text>
+            </View>
           </View>
-        </View>
-      </Animated.View>
-    </View>
+        </Animated.View>
+      </View>
+    </Modal>
   );
 }
 
@@ -104,16 +105,16 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   card: {
-    backgroundColor: 'rgba(30, 41, 59, 0.95)',
+    backgroundColor: 'rgba(30, 20, 30, 0.96)',
     borderRadius: 32,
     padding: 32,
     alignItems: 'center',
     width: width * 0.8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.3)',
-    shadowColor: '#FFD700',
+    borderColor: 'rgba(143, 61, 102, 0.6)',
+    shadowColor: ACCENT,
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowRadius: 20,
     elevation: 10,
   },
@@ -121,12 +122,12 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    backgroundColor: 'rgba(143, 61, 102, 0.18)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
     borderWidth: 2,
-    borderColor: '#FFD700',
+    borderColor: ACCENT,
   },
   successText: {
     fontSize: 24,
@@ -143,7 +144,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   badge: {
-    backgroundColor: '#FFD700',
+    backgroundColor: ACCENT,
     paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 20,
@@ -151,7 +152,7 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 10,
     fontWeight: '900',
-    color: '#0F172A',
+    color: '#FFFFFF',
     letterSpacing: 1,
   },
 });

@@ -74,7 +74,7 @@ function launchExternal(url: string) {
 
 export default function PaymentCheckoutScreen() {
   const params = useLocalSearchParams();
-  const { notifyPaymentSuccess, notifyPaymentFailure } = usePurchase();
+  const { notifyPaymentSuccess, notifyPaymentFailure, verifyPurchaseSoon } = usePurchase();
 
   const url = readParam(params.url) ?? '';
   const target = readParam(params.target) ?? '';
@@ -122,7 +122,11 @@ export default function PaymentCheckoutScreen() {
     handledRef.current = true;
     if (router.canGoBack()) router.back();
     else router.replace('/(tabs)' as any);
-  }, []);
+    // The user may have actually paid (e.g. via a UPI app) before the in-page
+    // redirect fired. Verify with the backend for a few seconds; if the webhook
+    // granted access, the unlock popup appears on the page behind.
+    verifyPurchaseSoon(target, kind);
+  }, [target, kind, verifyPurchaseSoon]);
 
   const onShouldStart = useCallback(
     (req: { url: string }) => {

@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from 'react';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import * as Linking from 'expo-linking';
 
 import { AnimatedLoadingPopup } from '@/components/ui/animated-loading-popup';
@@ -25,6 +25,7 @@ type PurchaseContextValue = {
   syncPurchases: () => Promise<void>;
   notifyPaymentSuccess: (target: string, kind: string) => void;
   notifyPaymentFailure: () => void;
+  verifyPurchaseSoon: (target: string, kind: string) => void;
   hasCategoryAccess: (category?: string) => boolean;
   hasVideoAccess: (videoTitle: string, options?: { category?: string; isFree?: boolean }) => boolean;
   getExpirationDate: (kind: 'video' | 'category', target: string) => string | null;
@@ -81,33 +82,68 @@ function PurchaseProviderInner({ children }: { children: ReactNode }) {
     return json.accessToken as string;
   };
 
-  const syncPurchases = async () => {
+  const fetchPurchasesData = async (): Promise<{
+    catMap: Record<string, PurchaseInfo>;
+    vidMap: Record<string, PurchaseInfo>;
+  } | null> => {
     const token = await getAccessToken();
-    if (!token) return;
+    if (!token) return null;
     let res = await fetch(apiUrl('/api/public/purchases/me'), {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
     });
     if (res.status === 401) {
       const next = await tryRefreshAccessToken();
-      if (!next) return;
+      if (!next) return null;
       res = await fetch(apiUrl('/api/public/purchases/me'), {
         headers: { Authorization: `Bearer ${next}`, Accept: 'application/json' },
       });
     }
-    if (!res.ok) return;
-    const json = (await res.json()) as { 
-      purchasedCategories?: { name: string; expiresAt: string | null }[]; 
-      purchasedVideos?: { title: string; expiresAt: string | null }[]; 
+    if (!res.ok) return null;
+    const json = (await res.json()) as {
+      purchasedCategories?: { name: string; expiresAt: string | null }[];
+      purchasedVideos?: { title: string; expiresAt: string | null }[];
     };
-    
     const catMap: Record<string, PurchaseInfo> = {};
-    json.purchasedCategories?.forEach(c => { catMap[c.name] = { expiresAt: c.expiresAt }; });
-    
+    json.purchasedCategories?.forEach((c) => { catMap[c.name] = { expiresAt: c.expiresAt }; });
     const vidMap: Record<string, PurchaseInfo> = {};
-    json.purchasedVideos?.forEach(v => { vidMap[v.title] = { expiresAt: v.expiresAt }; });
+    json.purchasedVideos?.forEach((v) => { vidMap[v.title] = { expiresAt: v.expiresAt }; });
+    return { catMap, vidMap };
+  };
 
-    setPurchasedCategories(catMap);
-    setPurchasedVideos(vidMap);
+  const syncPurchases = async () => {
+    const data = await fetchPurchasesData();
+    if (!data) return;
+    setPurchasedCategories(data.catMap);
+    setPurchasedVideos(data.vidMap);
+  };
+
+  // Safety net for missed in-WebView redirects (common with UPI) and for
+  // payments captured while the app was closed. The Razorpay webhook grants
+  // access server-side; poll a few times and, if access newly appears, unlock.
+  const verifyPurchaseSoon = (target: string, kind: string) => {
+    if (!target) return;
+    const alreadyOwned =
+      kind === 'category' ? target in purchasedCategories : target in purchasedVideos;
+    if (alreadyOwned) return;
+
+    let attempts = 0;
+    const maxAttempts = 6;
+    const tick = async () => {
+      attempts += 1;
+      const data = await fetchPurchasesData();
+      if (data) {
+        setPurchasedCategories(data.catMap);
+        setPurchasedVideos(data.vidMap);
+        const owned = kind === 'category' ? target in data.catMap : target in data.vidMap;
+        if (owned) {
+          setPendingUnlock({ title: target, kind: kind || 'video' });
+          void refreshNotifications();
+          return; // stop polling
+        }
+      }
+      if (attempts < maxAttempts) setTimeout(tick, 2500);
+    };
+    setTimeout(tick, 2000);
   };
 
   useEffect(() => {
@@ -143,7 +179,18 @@ function PurchaseProviderInner({ children }: { children: ReactNode }) {
     const sub = Linking.addEventListener('url', ({ url }) => {
       handlePaymentReturn(url);
     });
-    return () => sub.remove();
+
+    // Re-sync whenever the app returns to the foreground. Covers coming back
+    // from a UPI app and reopening the app after it was closed mid-payment:
+    // the Razorpay webhook grants access server-side, and this reflects it.
+    const appStateSub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void syncPurchases();
+    });
+
+    return () => {
+      sub.remove();
+      appStateSub.remove();
+    };
   }, []);
 
   const purchaseCategory = (category: string) => {
@@ -241,6 +288,7 @@ function PurchaseProviderInner({ children }: { children: ReactNode }) {
       syncPurchases,
       notifyPaymentSuccess,
       notifyPaymentFailure,
+      verifyPurchaseSoon,
       hasCategoryAccess,
       hasVideoAccess,
       getExpirationDate,

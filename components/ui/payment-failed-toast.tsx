@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Modal, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
   Easing,
@@ -18,20 +18,21 @@ type Props = {
 };
 
 export function PaymentFailedToast({ visible, message, onHide }: Props) {
-  const translateY = useSharedValue(-140);
+  const translateY = useSharedValue(-160);
   const opacity = useSharedValue(0);
 
   useEffect(() => {
     if (!visible) return;
 
+    translateY.value = -160;
+    opacity.value = 0;
     translateY.value = withTiming(0, { duration: 320, easing: Easing.out(Easing.cubic) });
     opacity.value = withTiming(1, { duration: 260 });
 
-    // Auto-dismiss after ~3.2s.
     opacity.value = withDelay(3200, withTiming(0, { duration: 300 }));
     translateY.value = withDelay(
       3200,
-      withTiming(-140, { duration: 320, easing: Easing.in(Easing.cubic) }, (finished) => {
+      withTiming(-160, { duration: 320, easing: Easing.in(Easing.cubic) }, (finished) => {
         if (finished) runOnJS(onHide)();
       })
     );
@@ -42,20 +43,27 @@ export function PaymentFailedToast({ visible, message, onHide }: Props) {
     opacity: opacity.value,
   }));
 
-  if (!visible) return null;
-
   return (
-    <SafeAreaView pointerEvents="none" style={styles.safe} edges={['top']}>
-      <Animated.View style={[styles.toast, animStyle]}>
-        <View style={styles.iconWrap}>
-          <MaterialIcons name="error-outline" size={22} color="#FFFFFF" />
-        </View>
-        <View style={styles.textWrap}>
-          <Text style={styles.title}>Payment Failed</Text>
-          <Text style={styles.subtitle}>{message ?? 'Payment was not completed. Please try again.'}</Text>
-        </View>
-      </Animated.View>
-    </SafeAreaView>
+    <Modal
+      visible={visible}
+      transparent
+      statusBarTranslucent
+      animationType="none"
+      onRequestClose={onHide}>
+      <SafeAreaView pointerEvents="none" style={styles.safe} edges={['top']}>
+        <Animated.View style={[styles.toast, animStyle]}>
+          <View style={styles.iconWrap}>
+            <MaterialIcons name="error-outline" size={22} color="#FFFFFF" />
+          </View>
+          <View style={styles.textWrap}>
+            <Text style={styles.title}>Payment Failed</Text>
+            <Text style={styles.subtitle}>
+              {message ?? 'Payment was not completed. Please try again.'}
+            </Text>
+          </View>
+        </Animated.View>
+      </SafeAreaView>
+    </Modal>
   );
 }
 
@@ -65,7 +73,6 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    zIndex: 9999,
     alignItems: 'center',
   },
   toast: {
