@@ -17,6 +17,7 @@ export type PublicCatalogVideo = {
   category?: string;
   isFree?: boolean;
   accessValidityDays?: number;
+  pricingTiers?: { days: number; amountCents: number; label: string }[];
   dashUrl: string;
   hlsUrl?: string;
 };

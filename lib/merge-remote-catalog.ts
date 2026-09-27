@@ -87,6 +87,7 @@ function remoteVideoToDetails(base: VideoDetails | undefined, remote: PublicCata
     category: remote.category ?? prev.category,
     isFree: remote.isFree ?? prev.isFree,
     accessValidityDays: remote.accessValidityDays ?? prev.accessValidityDays,
+    pricingTiers: remote.pricingTiers ?? prev.pricingTiers,
     dashUrl: remote.dashUrl,
     hlsUrl: remote.hlsUrl ?? prev.hlsUrl,
     thumbnail: { uri: normalizeRemoteImageUrl(remote.thumbnailUrl) } as ImageSourcePropType,

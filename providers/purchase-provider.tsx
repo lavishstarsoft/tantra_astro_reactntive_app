@@ -21,7 +21,7 @@ type PurchaseContextValue = {
   purchasedCategories: Record<string, PurchaseInfo>;
   purchasedVideos: Record<string, PurchaseInfo>;
   purchaseCategory: (category: string) => void;
-  purchaseVideo: (videoTitle: string) => void;
+  purchaseVideo: (videoTitle: string, tierIndex?: number) => void;
   syncPurchases: () => Promise<void>;
   notifyPaymentSuccess: (target: string, kind: string) => void;
   notifyPaymentFailure: () => void;
@@ -223,7 +223,7 @@ function PurchaseProviderInner({ children }: { children: ReactNode }) {
     })();
   };
 
-  const purchaseVideo = (videoTitle: string) => {
+  const purchaseVideo = (videoTitle: string, tierIndex?: number) => {
     // iOS is a reader app: no in-app purchase/webview. Buying happens on the website.
     if (Platform.OS === 'ios') return;
     if (isInCategoryPack(videoTitle)) {
@@ -237,7 +237,7 @@ function PurchaseProviderInner({ children }: { children: ReactNode }) {
         const res = await fetch(apiUrl('/api/public/payments/razorpay/checkout-url'), {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ kind: 'video', videoTitle }),
+          body: JSON.stringify({ kind: 'video', videoTitle, ...(tierIndex != null ? { tierIndex } : {}) }),
         });
         const json = (await res.json()) as any;
         if (!res.ok || !json?.url) return;

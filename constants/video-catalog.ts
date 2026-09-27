@@ -16,6 +16,7 @@ export type VideoDetails = {
   category?: string;
   isFree?: boolean;
   accessValidityDays?: number;
+  pricingTiers?: { days: number; amountCents: number; label: string }[];
   individualPriceLabel?: string;
   dashUrl: string;
   hlsUrl?: string;

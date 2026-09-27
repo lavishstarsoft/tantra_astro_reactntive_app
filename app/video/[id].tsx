@@ -1,11 +1,12 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Animated, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BackNavButton } from '@/components/navigation/back-nav-button';
 import { AccordionSection } from '@/components/ui/accordion-section';
+import { PricingTierSheet } from '@/components/ui/pricing-tier-sheet';
 import { HeroInlinePlayer } from '@/components/video/hero-inline-player';
 import { MoreVideosOttRow } from '@/components/video/more-videos-ott-row';
 import { allowsIndividualVideoPurchase } from '@/constants/video-purchase-rules';
@@ -67,6 +68,12 @@ export default function VideoDetailsScreen() {
   const allowIndividual = allowsIndividualVideoPurchase(video.title, isInCategoryPack);
   const showBuyVideo = !accessMeta.isFree && !canWatch && allowIndividual;
   const packTotal = getCategoryPackTotalPrice(accessMeta.category);
+  const pricingTiers = video.pricingTiers ?? [];
+  const [showTierSheet, setShowTierSheet] = useState(false);
+  const onBuyVideoPress = () => {
+    if (pricingTiers.length > 0) setShowTierSheet(true);
+    else purchaseVideo(video.title);
+  };
 
   const categoryVideoRows = useMemo(() => {
     const packRaw = videosByCategory[accessMeta.category] ?? [];
@@ -207,10 +214,14 @@ export default function VideoDetailsScreen() {
                 {!canWatch && showBuyVideo && !isReviewMode && Platform.OS !== 'ios' ? (
                   <Pressable
                     style={[styles.titleBuyNowButton, { backgroundColor: accent }]}
-                    onPress={() => purchaseVideo(video.title)}>
+                    onPress={onBuyVideoPress}>
                     <MaterialIcons name="shopping-cart" size={20} color="#FFFFFF" />
                     <Text style={styles.titleBuyNowText}>
-                      {`${buyButtonText} · ${normalizeRupeeLabel(video.individualPriceLabel ?? video.priceLabel)}`}
+                      {pricingTiers.length > 0
+                        ? `${buyButtonText} · from ${normalizeRupeeLabel(
+                            String(Math.min(...pricingTiers.map((t) => Math.round(t.amountCents / 100))))
+                          )}`
+                        : `${buyButtonText} · ${normalizeRupeeLabel(video.individualPriceLabel ?? video.priceLabel)}`}
                     </Text>
                   </Pressable>
                 ) : null}
@@ -352,6 +363,17 @@ export default function VideoDetailsScreen() {
         <BackNavButton onPress={onBack} />
         <View style={styles.headerSpacer} />
       </View>
+
+      <PricingTierSheet
+        visible={showTierSheet}
+        tiers={pricingTiers}
+        accent={accent}
+        onClose={() => setShowTierSheet(false)}
+        onSelect={(i) => {
+          setShowTierSheet(false);
+          purchaseVideo(video.title, i);
+        }}
+      />
     </View>
   );
 }
